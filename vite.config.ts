@@ -11,13 +11,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  server: {
-    proxy: {
-      '/proxy': {
-        target: 'https://rateengine.ship.cars',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/proxy/, ''),
-      },
-    },
-  },
 })

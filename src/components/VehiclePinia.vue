@@ -3,11 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useVehiclesStore } from '../stores/vehicles'
 import { useFetchData } from '@/shared/useFetchData'
 import type { VehicleMakes, VehicleModels, VehicleYears } from '@/@types/Vehicle'
-import { watch } from 'vue'
-import { assertIsDefined } from '@/shared/useAssert'
-
-const apiToken = import.meta.env.VITE_API_TOKEN
-assertIsDefined(apiToken)
+import { onMounted, watch } from 'vue'
 
 const vehicleStore = useVehiclesStore()
 
@@ -25,24 +21,16 @@ const {
   data: availableYears,
   error: yearsError,
   loading: yearsLoading,
-} = useFetchData<VehicleYears[]>(`/api/v2/vehicles/years/?token=${apiToken}`)
+} = useFetchData<VehicleYears>('/api/vehicles/years')
 
 fetchYears()
 
-watch(availableYears, async () => {
-  if (!availableYears.value) {
-    availableVehicleYears.value = []
-    return
-  }
-
-  availableVehicleYears.value = availableYears.value.map((vehicle) => {
-    return { value: vehicle.year, label: vehicle.year.toString() }
-  })
-
-  if (selectedVehicleYear.value) {
-    const { fetchData: fetchMakes, data: availableMakes } = useFetchData<VehicleMakes[]>(
-      `/api/v2/vehicles/makes/?year=${selectedVehicleYear.value.value}&token=${apiToken}`,
+onMounted(async () => {
+  if (selectedVehicleYear.value?.value) {
+    const { fetchData: fetchMakes, data: availableMakes } = useFetchData<VehicleMakes>(
+      `/api/vehicles/makes?year=${selectedVehicleYear.value.value}`,
     )
+
     await fetchMakes()
 
     if (!availableMakes.value) {
@@ -50,14 +38,42 @@ watch(availableYears, async () => {
       return
     }
 
-    availableVehicleMakes.value = availableMakes.value.map((vehicle) => {
-      return { value: vehicle.make, label: vehicle.make }
+    availableVehicleMakes.value = availableMakes.value.data.map((vehicle) => {
+      return { value: vehicle.name, label: vehicle.name }
+    })
+  }
+
+  if (selectedVehicleYear.value && selectedVehicleMake.value) {
+    const { fetchData: fetchModels, data: availableModels } = useFetchData<VehicleModels>(
+      `/api/vehicles/models?year=${selectedVehicleYear.value.value}&make=${selectedVehicleMake.value.value}`,
+    )
+
+    await fetchModels()
+
+    if (!availableModels.value) {
+      availableVehicleModels.value = []
+      return
+    }
+
+    availableVehicleModels.value = availableModels.value.data.map((vehicle) => {
+      return { value: vehicle.model, label: vehicle.model }
     })
   }
 })
 
+watch(availableYears, async () => {
+  if (!availableYears.value?.data.length) {
+    availableVehicleYears.value = []
+    return
+  }
+
+  availableVehicleYears.value = availableYears.value.data.map((year) => {
+    return { value: year, label: year.toString() }
+  })
+})
+
 watch(selectedVehicleYear, async () => {
-  if (!selectedVehicleYear || !selectedVehicleYear.value) {
+  if (!selectedVehicleYear.value) {
     availableVehicleMakes.value = []
     selectedVehicleMake.value = null
     availableVehicleModels.value = []
@@ -65,8 +81,8 @@ watch(selectedVehicleYear, async () => {
     return
   }
 
-  const { fetchData: fetchMakes, data: availableMakes } = useFetchData<VehicleMakes[]>(
-    `/api/v2/vehicles/makes/?year=${selectedVehicleYear.value.value}&token=${apiToken}`,
+  const { fetchData: fetchMakes, data: availableMakes } = useFetchData<VehicleMakes>(
+    `/api/vehicles/makes/?year=${selectedVehicleYear.value.value}`,
   )
 
   await fetchMakes()
@@ -76,9 +92,13 @@ watch(selectedVehicleYear, async () => {
     return
   }
 
-  availableVehicleMakes.value = availableMakes.value.map((vehicle) => {
-    return { value: vehicle.make, label: vehicle.make }
+  availableVehicleMakes.value = availableMakes.value.data.map((vehicle) => {
+    return { value: vehicle.name, label: vehicle.name }
   })
+
+  if (!availableVehicleMakes.value.some((avm) => avm.value === selectedVehicleMake.value?.value)) {
+    selectedVehicleMake.value = null
+  }
 })
 
 watch([selectedVehicleYear, selectedVehicleMake], async ([year, make]) => {
@@ -88,8 +108,8 @@ watch([selectedVehicleYear, selectedVehicleMake], async ([year, make]) => {
     return
   }
 
-  const { fetchData: fetchModels, data: availableModels } = useFetchData<VehicleModels[]>(
-    `/api/v2/vehicles/models/?year=${year.value}&make=${make.value}&token=5cbe12fb62f4941267d623499a2a4fd5948fd3ef`,
+  const { fetchData: fetchModels, data: availableModels } = useFetchData<VehicleModels>(
+    `/api/vehicles/models?year=${year.value}&make=${make.value}`,
   )
 
   await fetchModels()
@@ -99,9 +119,15 @@ watch([selectedVehicleYear, selectedVehicleMake], async ([year, make]) => {
     return
   }
 
-  availableVehicleModels.value = availableModels.value.map((vehicle) => {
+  availableVehicleModels.value = availableModels.value.data.map((vehicle) => {
     return { value: vehicle.model, label: vehicle.model }
   })
+
+  if (
+    !availableVehicleModels.value.some((model) => model.value === selectedVehicleModel.value?.value)
+  ) {
+    selectedVehicleModel.value = null
+  }
 })
 </script>
 

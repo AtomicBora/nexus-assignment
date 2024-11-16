@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import type { VehicleMakes, VehicleModels, VehicleYears } from '@/@types/Vehicle'
 import type { VSelect } from '@/@types/VSelect'
-import { assertIsDefined } from '@/shared/useAssert'
 import { useFetchData } from '@/shared/useFetchData'
 import { ref, watch } from 'vue'
-
-const apiToken = import.meta.env.VITE_API_TOKEN
-assertIsDefined(apiToken)
 
 const availableVehicleYears = ref<VSelect<number>[] | []>([])
 const availableVehicleMakes = ref<VSelect<string>[] | []>([])
@@ -20,7 +16,7 @@ const {
   data: years,
   loading: yearsLoading,
   error: yearsError,
-} = useFetchData<VehicleYears[]>(`/api/v2/vehicles/years/?token=${apiToken}`)
+} = useFetchData<VehicleYears>(`/api/vehicles/years`)
 
 fetchYears()
 
@@ -30,7 +26,7 @@ watch(years, () => {
     selectedVehicleYear.value = null
     return
   }
-  availableVehicleYears.value = years.value.map(({ year }) => {
+  availableVehicleYears.value = years.value.data.map((year) => {
     return { value: year, label: year.toString() }
   })
 })
@@ -44,8 +40,8 @@ watch(selectedVehicleYear, async () => {
     return
   }
 
-  const { fetchData: fetchMakes, data: availableMakes } = useFetchData<VehicleMakes[]>(
-    `/api/v2/vehicles/makes/?year=${selectedVehicleYear.value.value}&token=${apiToken}`,
+  const { fetchData: fetchMakes, data: availableMakes } = useFetchData<VehicleMakes>(
+    `/api/vehicles/makes?year=${selectedVehicleYear.value.value}`,
   )
 
   await fetchMakes()
@@ -55,9 +51,13 @@ watch(selectedVehicleYear, async () => {
     return
   }
 
-  availableVehicleMakes.value = availableMakes.value.map((vehicle) => {
-    return { value: vehicle.make, label: vehicle.make }
+  availableVehicleMakes.value = availableMakes.value.data.map((vehicle) => {
+    return { value: vehicle.name, label: vehicle.name }
   })
+
+  if (!availableVehicleMakes.value.some((avm) => avm.value === selectedVehicleMake.value?.value)) {
+    selectedVehicleMake.value = null
+  }
 })
 
 watch([selectedVehicleYear, selectedVehicleMake], async ([year, make]) => {
@@ -67,8 +67,8 @@ watch([selectedVehicleYear, selectedVehicleMake], async ([year, make]) => {
     return
   }
 
-  const { fetchData: fetchModels, data: availableModels } = useFetchData<VehicleModels[]>(
-    `/api/v2/vehicles/models/?year=${year.value}&make=${make.value}&token=${apiToken}`,
+  const { fetchData: fetchModels, data: availableModels } = useFetchData<VehicleModels>(
+    `/api/vehicles/models?year=${year.value}&make=${make.value}`,
   )
 
   await fetchModels()
@@ -78,9 +78,15 @@ watch([selectedVehicleYear, selectedVehicleMake], async ([year, make]) => {
     return
   }
 
-  availableVehicleModels.value = availableModels.value.map((vehicle) => {
+  availableVehicleModels.value = availableModels.value.data.map((vehicle) => {
     return { value: vehicle.model, label: vehicle.model }
   })
+
+  if (
+    !availableVehicleModels.value.some((model) => model.value === selectedVehicleModel.value?.value)
+  ) {
+    selectedVehicleModel.value = null
+  }
 })
 </script>
 
@@ -123,7 +129,7 @@ watch([selectedVehicleYear, selectedVehicleMake], async ([year, make]) => {
     align-items: center;
   }
   .select-container {
-    width: 300px;
+    width: 400px;
     margin: 10px 0;
   }
 }
