@@ -1,6 +1,13 @@
 import axios, { AxiosError } from 'axios'
 import { ref, type Ref } from 'vue'
 
+const apiInstance = axios.create({
+  baseURL: 'https://rateengine.ship.cars',
+  timeout: 1000,
+  withCredentials: false,
+  headers: { 'Content-Type': 'application/json' },
+})
+
 export const useFetchData = <T>(url: string) => {
   const response = ref<T | null>(null) as Ref<T | null>
   const error = ref<string | null>(null)
@@ -11,7 +18,7 @@ export const useFetchData = <T>(url: string) => {
     error.value = null
 
     try {
-      const { data } = await axios.get<T>(url)
+      const { data } = await apiInstance.get<T>(url)
       response.value = data
     } catch (e) {
       if (e instanceof AxiosError) {
